@@ -6,7 +6,6 @@ import sys
 sys.path.append('../../../')
 from source.chainer_functions.misc import call_bn
 
-
 class CNN(chainer.Chain):
     def __init__(self, n_outputs=10, dropout_rate=0.5, top_bn=False):
         self.dropout_rate = dropout_rate
@@ -44,7 +43,10 @@ class CNN(chainer.Chain):
         h = self.c3(h)
         h = F.leaky_relu(call_bn(self.bn3, h, test=not train, update_batch_stats=update_batch_stats), slope=0.1)
         h = F.max_pooling_2d(h, ksize=2, stride=2)
-        h = F.dropout(h, ratio=self.dropout_rate, train=train)
+        
+        # Using chainer.using_config for dropout
+        with chainer.using_config('train', train):
+            h = F.dropout(h, ratio=self.dropout_rate)
 
         h = self.c4(h)
         h = F.leaky_relu(call_bn(self.bn4, h, test=not train, update_batch_stats=update_batch_stats), slope=0.1)
@@ -53,7 +55,9 @@ class CNN(chainer.Chain):
         h = self.c6(h)
         h = F.leaky_relu(call_bn(self.bn6, h, test=not train, update_batch_stats=update_batch_stats), slope=0.1)
         h = F.max_pooling_2d(h, ksize=2, stride=2)
-        h = F.dropout(h, ratio=self.dropout_rate, train=train)
+
+        with chainer.using_config('train', train):
+            h = F.dropout(h, ratio=self.dropout_rate)
 
         h = self.c7(h)
         h = F.leaky_relu(call_bn(self.bn7, h, test=not train, update_batch_stats=update_batch_stats), slope=0.1)
@@ -63,6 +67,9 @@ class CNN(chainer.Chain):
         h = F.leaky_relu(call_bn(self.bn9, h, test=not train, update_batch_stats=update_batch_stats), slope=0.1)
         h = F.average_pooling_2d(h, ksize=h.data.shape[2])
         logit = self.l_cl(h)
+        
         if self.top_bn:
             logit = call_bn(self.bn_cl, logit, test=not train, update_batch_stats=update_batch_stats)
+        
         return logit
+

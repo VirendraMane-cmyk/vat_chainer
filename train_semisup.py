@@ -11,21 +11,22 @@ from models.cnn import CNN
 
 XI = 1e-6
 
-
 def loss_labeled(forward, x, t):
-    y = forward(x, update_batch_stats=True)
+    with chainer.using_config('train', True):
+        y = forward(x, update_batch_stats=True)
     L = F.softmax_cross_entropy(y, t)
     return L
-
 
 def loss_unlabeled(forward, x, args):
     if args.method == 'vat':
         # Virtual adversarial training loss
-        logit = forward(x, train=True, update_batch_stats=False)
+        with chainer.using_config('train', True):
+            logit = forward(x, update_batch_stats=False)
         return loss.vat_loss(forward, loss.distance, x, epsilon=args.epsilon, xi=XI, p_logit=logit.data)
     elif args.method == 'vatent':
         # Virtual adversarial training loss + Conditional Entropy loss
-        logit = forward(x, train=True, update_batch_stats=False)
+        with chainer.using_config('train', True):
+            logit = forward(x, update_batch_stats=False)
         vat_loss = loss.vat_loss(forward, loss.distance, x, epsilon=args.epsilon, xi=XI, p_logit=logit.data)
         ent_y_x = loss.entropy_y_x(logit)
         return vat_loss + ent_y_x
@@ -35,12 +36,12 @@ def loss_unlabeled(forward, x, args):
     else:
         raise NotImplementedError
 
-
 def loss_test(forward, x, t):
-    logit = forward(x, train=False)
-    L, acc = F.softmax_cross_entropy(logit, t).data, F.accuracy(logit, t).data
+    with chainer.using_config('train', False):
+        logit = forward(x)
+    L = F.softmax_cross_entropy(logit, t).data
+    acc = F.accuracy(logit, t).data
     return L, acc
-
 
 def load_dataset(dirpath, valid=False, dataset_seed=1):
     if valid:
@@ -58,7 +59,6 @@ def load_dataset(dirpath, valid=False, dataset_seed=1):
     return Data(train_l['images'], train_l['labels'].astype(np.int32)), \
            Data(train_ul['images'], train_ul['labels'].astype(np.int32)), \
            Data(test['images'], test['labels'].astype(np.int32))
-
 
 def train(args):
     np.random.seed(args.seed)
@@ -111,7 +111,7 @@ def train(args):
                 t = test_t[i:i + args.batchsize_eval]
                 if args.gpu > -1:
                     x, t = cuda.to_gpu(x, device=args.gpu), cuda.to_gpu(t, device=args.gpu)
-                _, acc = loss_test(enc, Variable(x, volatile=True), Variable(t, volatile=True))
+                _, acc = loss_test(enc, Variable(x), Variable(t))
                 acc_test_sum += acc * x.shape[0]
             accs_test[epoch] = acc_test_sum / N_test
             print("Epoch:{}, classification loss:{}, unlabeled loss:{}, time:{}".format(
@@ -131,7 +131,6 @@ def train(args):
                                np.transpose([accs_test, cl_losses, ul_losses])], 0), fmt='%s')
     serializers.save_npz(os.path.join(args.log_dir, 'trained_model_final'), enc)
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=int, help='which gpu device to use', default=-1)
@@ -145,7 +144,6 @@ if __name__ == "__main__":
     parser.add_argument('--validation', action='store_true')
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--dataset_seed', type=int, default=1)
-
     parser.add_argument('--batchsize', type=int, default=32)
     parser.add_argument('--batchsize_ul', type=int, default=128)
     parser.add_argument('--batchsize_eval', type=int, default=100)
@@ -155,10 +153,10 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--mom1', type=float, default=0.9)
     parser.add_argument('--mom2', type=float, default=0.5)
-
-    parser.add_argument('--method', type=str, default='vat')
-    parser.add_argument('--epsilon', type=float, help='epsilon', default=8.0)
-    parser.add_argument('--dropout_rate', type=float, help='dropout_rate', default=0.5)
+    parser.add_argument('--dropout_rate', type=float, default=0.5)
+    parser.add_argument('--epsilon', type=float, default=8.0)
+    parser.add_argument('--method', type=str, default='vatent')
     parser.add_argument('--top_bn', action='store_true')
     args = parser.parse_args()
     train(args)
+

@@ -1,12 +1,12 @@
 import pickle
 import datetime, math, sys, time
 
-from sklearn.datasets import fetch_mldata
+from sklearn.datasets import fetch_openml
 import numpy as np
 import math
 import chainer
 import chainer.functions as F
-from chainer import FunctionSet, Variable, optimizers, cuda, serializers
+from chainer import Function, Variable, optimizers, cuda, serializers
 import six
 
 
