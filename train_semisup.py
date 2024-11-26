@@ -65,10 +65,16 @@ def train(args):
     train_l, train_ul, test = load_dataset(args.data_dir, valid=args.validation, dataset_seed=args.dataset_seed)
     print("N_train_labeled:{}, N_train_unlabeled:{}".format(train_l.N, train_ul.N))
     enc = CNN(n_outputs=args.n_categories, dropout_rate=args.dropout_rate, top_bn=args.top_bn)
+    print("Trying to detect gpu")
     if args.gpu > -1:
         chainer.cuda.get_device(args.gpu).use()
         enc.to_gpu()
+        print("GPU detected successfully")
+    else
+        print("Gpu could not be detected -- Exiting")
+        return -1
 
+    
     optimizer = optimizers.Adam(alpha=args.lr, beta1=args.mom1)
     optimizer.setup(enc)
     optimizer.use_cleargrads()
