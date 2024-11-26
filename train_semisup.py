@@ -70,7 +70,7 @@ def train(args):
         chainer.cuda.get_device(args.gpu).use()
         enc.to_gpu()
         print("GPU detected successfully")
-    else
+    else :
         print("Gpu could not be detected -- Exiting")
         return -1
 
