@@ -34,3 +34,29 @@ def generate_vat_perturbation(forward, x, xi=1e-6, epsilon=3.5, num_iterations=1
         d /= xp.linalg.norm(d, axis=(1, 2, 3), keepdims=True) + 1e-12
     perturbation = epsilon * d
     return Variable(perturbation)
+
+
+def consistency_regularization(forward, x, perturbation):
+    """
+    Compute the consistency regularization term for VAT.
+
+    Parameters:
+        forward (callable): The model function to generate predictions.
+        x (Variable): The original input data.
+        perturbation (Variable): The generated adversarial perturbation.
+
+    Returns:
+        Variable: The consistency regularization term (KL divergence).
+    """
+    # Compute logits for original input
+    with chainer.using_config('train', False):
+        logits_original = forward(x)
+
+    # Compute logits for perturbed input
+    x_perturbed = x + perturbation
+    logits_perturbed = forward(x_perturbed)
+
+    # Compute KL divergence between the two sets of logits
+    kl_div = F.sum(F.kl_div(F.log_softmax(logits_perturbed), F.softmax(logits_original), axis=1))
+    return kl_div
+
